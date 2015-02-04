@@ -2,6 +2,9 @@ import os #For creating folder
 import urllib #For accessing the web
 import re #For regex
 from urllib.request import urlopen, URLopener
+import threading #For downloading multiple files at once
+import queue #To create a queue for the threads to pull data from
+
 
 #Takes in the url of the album, and returns list of lists that contain picture URL endings (eg "ufufuf.jpg") and the extension of the picture (eg "jpg")
 def create_pic_list(album_url):
@@ -73,7 +76,8 @@ def download_pic(pic_key, name):
 	#Check if there is a picture with this name already
 	#Either rename or skip
 	if os.path.isfile(name):
-		return False
+		return True
+		#return False
 		'''
 		#Add "_1" to the end of the picture name if name is taken
 		name = "1_" + name
@@ -88,16 +92,61 @@ def download_pic(pic_key, name):
 		return False
 	#Return True if process completes, meaning that picture downloaded
 	return True
-
+	
+'''	
+# The worker thread pulls an item from the queue and downloads it
+def worker():
+    while True:
+        item = q.get()
+		#If the download fails, add to queue of failed downloads
+        if not download_pic(item):
+			failed_dl.put(item)
+        q.task_done()
+'''		
 
 if __name__ == '__main__':
 	#Test http://imgur.com/a/poltD
 	url_in = input("Input url: ")
 	pics = create_pic_list(url_in)
-	
-	print(pics)
-	print(len(pics))
-	print(pics[0][0])
-	#Test download
-	print("Download complete:", download_pic(pics[0][0], pics[0][0]))
+	#If the list could be created:
+	if pics:
+		#Print stats about info
+		print(len(pics), "images in gallery")
+		#Get number of each extension type
+		extension_count = {}
+		for i in pics:
+			#If key is already in dict
+			if i[1] in extension_count:
+				#Increment count of extension
+				extension_count[i[1]] = extension_count[i[1]] + 1
+			#If first occurrence of extension, create entry
+			else:
+				extension_count[i[1]] = 1
 		
+		#Print dict of extensions by iterating through
+		for key in extension_count:
+			print(extension_count[key], key, "images")
+		
+		#Create queue of data so that threads can all access data
+		pics_queue = queue.Queue()
+		for i in pics:
+			pics_queue.put(i[0])
+		
+		#Create empty queue to store failed download keys
+		failed_dl = queue.Queue()
+		
+		#Number of threads to start to process data
+		num_of_threads = 1
+		print("Beginning download of album with", num_of_threads, "threads")
+		#Create number of threads specified
+		for i in range(num_of_threads):
+			 t = threading.Thread(target=worker)
+			 t.daemon = True  # thread dies when main thread (only non-daemon thread) exits.
+			 t.start()
+		'''
+		print(pics)
+		print(len(pics))
+		print(pics[0][0])
+		#Test download
+		print("Download complete:", download_pic(pics[0][0], pics[0][0]))
+		'''	
