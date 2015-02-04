@@ -93,16 +93,24 @@ def download_pic(pic_key, name):
 	#Return True if process completes, meaning that picture downloaded
 	return True
 	
-'''	
+
 # The worker thread pulls an item from the queue and downloads it
 def worker():
-    while True:
-        item = q.get()
+	while True:
+		item = pics_queue.get()
+		#Create name for picture using position in album and picture name
+		pic_name = str(item[1]) + "_" + item[0]
 		#If the download fails, add to queue of failed downloads
-        if not download_pic(item):
+		if not download_pic(item[0], pic_name):
 			failed_dl.put(item)
-        q.task_done()
-'''		
+			#Use lock to serialize output
+			with lock:
+				print("FAILED:", pic_name, "in", threading.current_thread().name)
+		#Use lock to serialize output
+		with lock:
+			print("Downloaded", pic_name, "in", threading.current_thread().name)
+		pics_queue.task_done()
+	
 
 if __name__ == '__main__':
 	#Test http://imgur.com/a/poltD
@@ -129,20 +137,27 @@ if __name__ == '__main__':
 		
 		#Create queue of data so that threads can all access data
 		pics_queue = queue.Queue()
-		for i in pics:
-			pics_queue.put(i[0])
+		for i,image in enumerate(pics):
+			pics_queue.put([image[0], i+1])
 		
 		#Create empty queue to store failed download keys
 		failed_dl = queue.Queue()
 		
+		# lock to serialize console output
+		lock = threading.Lock()
+
 		#Number of threads to start to process data
 		num_of_threads = 1
 		print("Beginning download of album with", num_of_threads, "threads")
+		
 		#Create number of threads specified
 		for i in range(num_of_threads):
 			 t = threading.Thread(target=worker)
 			 t.daemon = True  # thread dies when main thread (only non-daemon thread) exits.
 			 t.start()
+		#Wait until all tasks have finished, lock until done
+		pics_queue.join()
+		
 		'''
 		print(pics)
 		print(len(pics))
