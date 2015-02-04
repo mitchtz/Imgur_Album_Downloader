@@ -4,6 +4,7 @@ import re #For regex
 from urllib.request import urlopen, URLopener
 import threading #For downloading multiple files at once
 import queue #To create a queue for the threads to pull data from
+import time #For timing operations
 
 
 #Takes in the url of the album, and returns list of lists that contain picture URL endings (eg "ufufuf.jpg") and the extension of the picture (eg "jpg")
@@ -136,6 +137,7 @@ if __name__ == '__main__':
 			print(extension_count[key], key, "images")
 		
 		#Create queue of data so that threads can all access data
+		#Each queue entry will contain the unique image key and the number in the album that the picture is
 		pics_queue = queue.Queue()
 		for i,image in enumerate(pics):
 			pics_queue.put([image[0], i+1])
@@ -147,8 +149,11 @@ if __name__ == '__main__':
 		lock = threading.Lock()
 
 		#Number of threads to start to process data
-		num_of_threads = 1
+		num_of_threads = 4
 		print("Beginning download of album with", num_of_threads, "threads")
+		
+		#Start timer (using perf_counter for precision
+		start = time.perf_counter()
 		
 		#Create number of threads specified
 		for i in range(num_of_threads):
@@ -157,11 +162,5 @@ if __name__ == '__main__':
 			 t.start()
 		#Wait until all tasks have finished, lock until done
 		pics_queue.join()
-		
-		'''
-		print(pics)
-		print(len(pics))
-		print(pics[0][0])
-		#Test download
-		print("Download complete:", download_pic(pics[0][0], pics[0][0]))
-		'''	
+		print("Time:", round(time.perf_counter() - start, 3), "seconds")
+		print("For", len(pics), "pictures using", num_of_threads, "threads")
