@@ -149,7 +149,7 @@ if __name__ == '__main__':
 		lock = threading.Lock()
 
 		#Number of threads to start to process data
-		num_of_threads = 4
+		num_of_threads = 2
 		print("Beginning download of album with", num_of_threads, "threads")
 		
 		#Start timer (using perf_counter for precision
