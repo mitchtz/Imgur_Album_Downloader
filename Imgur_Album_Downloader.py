@@ -7,8 +7,9 @@ import queue #To create a queue for the threads to pull data from
 import time #For timing operations
 
 
-#Takes in the url of the album, and returns list of lists that contain picture URL endings (eg "ufufuf.jpg") and the extension of the picture (eg "jpg")
-def create_pic_list(album_url):
+#Returns list of lists that contain picture URL endings (eg "ufufuf.jpg") and the extension of the picture (eg "jpg")
+#Takes in the url of the album or gallery, and the name that the user wants the directory to be named. Defaults to album key if not specified
+def create_pic_list(album_url, dir_name=False):
 	# Check the URL is actually imgur:
 	'''
 	match = re.match("(https?)\:\/\/(www\.)?(?:m\.)?imgur\.com/a/([a-zA-Z0-9]+)(#[0-9]+)?", album_url)
@@ -29,7 +30,11 @@ def create_pic_list(album_url):
 		return False
 	#Change current directory to new folder named after 	
 	current_dir = os.getcwd()
-	dl_path = current_dir + "\\" + album_key
+	#If no directory name specified, use album_key
+	if not dir_name:
+		dl_path = current_dir + "\\" + album_key
+	else:
+		dl_path = current_dir + "\\" + dir_name
 	##This should allow the download location to be changed so that the program can be run off locked flash drive
 	#Test to see if directory exists for program already, if not, create one
 	if not os.path.exists(dl_path):
@@ -59,11 +64,12 @@ def create_pic_list(album_url):
 	#Images now holds a list of all urls of each image
 	regexImages = re.findall('<img src="(\/\/i\.imgur\.com\/([a-zA-Z0-9]+\.(jpg|jpeg|png|gif)))(\?[0-9]+)?"', html)
 	
-	#Remove extra (1st and 4th) columns from finding algorithm (orig. format is like: ('//i.imgur.com/ufufuf.jpg', ufufuf.jpg', 'jpg', '')
+	#Remove extra (1st and 4th) columns from finding algorithm (orig. format is like: ('//i.imgur.com/ufufufh.jpg', ufufufh.jpg', 'jpg', '')
 	#Creates a list of lists that has only the unique picture key from URL, and then the extension of the picture
+	#Also replace the h.jpg at the end of the picture key (which only gets low res pics) with f.jpg (Which gets high res pics)
 	images = []
 	for row in regexImages:
-		images.append([row[1], row[2]])
+		images.append([row[1].replace("h.", "."), row[2]])
 	
 	return images
 
@@ -107,16 +113,22 @@ def worker():
 			#Use lock to serialize output
 			with lock:
 				print("FAILED:", pic_name, "in", threading.current_thread().name)
-		#Use lock to serialize output
-		with lock:
-			print("Downloaded", pic_name, "in", threading.current_thread().name)
+		#If download completes successfully, print that it has
+		else:
+			#Use lock to serialize output
+			with lock:
+				print("Downloaded", pic_name, "in", threading.current_thread().name)
 		pics_queue.task_done()
 	
 
 if __name__ == '__main__':
 	#Test http://imgur.com/a/poltD
 	url_in = input("Input url: ")
-	pics = create_pic_list(url_in)
+	if input("Name the folder different than the album key? (y or n) ") == "y":
+		dir_name_in = input("What name should the folder have? ")
+		pics = create_pic_list(url_in, dir_name_in)
+	else:
+		pics = create_pic_list(url_in)
 	#If the list could be created:
 	if pics:
 		#Print stats about info
@@ -149,7 +161,8 @@ if __name__ == '__main__':
 		lock = threading.Lock()
 
 		#Number of threads to start to process data
-		num_of_threads = 2
+		#num_of_threads = 4
+		num_of_threads = int(input("Input number of threads: "))
 		print("Beginning download of album with", num_of_threads, "threads")
 		
 		#Start timer (using perf_counter for precision
@@ -164,3 +177,5 @@ if __name__ == '__main__':
 		pics_queue.join()
 		print("Time:", round(time.perf_counter() - start, 3), "seconds")
 		print("For", len(pics), "pictures using", num_of_threads, "threads")
+	else:
+		print("Failed to create list of images in gallery")
