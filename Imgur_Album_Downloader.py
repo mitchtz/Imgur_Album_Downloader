@@ -21,7 +21,7 @@ def create_pic_list(album_url, dir_name=False):
 	album_key = match.group(3)
 	'''
 	#Get unique album key
-	if "gallery" in album_url:
+	if "/gallery/" in album_url:
 		album_key = album_url.replace("http://imgur.com/gallery/", "")
 	elif "/a/" in album_url:
 		album_key = album_url.replace("http://imgur.com/a/", "")
@@ -157,12 +157,12 @@ if __name__ == '__main__':
 		#Create empty queue to store failed download keys
 		failed_dl = queue.Queue()
 		
-		# lock to serialize console output
+		#Lock to serialize console output
 		lock = threading.Lock()
 
 		#Number of threads to start to process data
-		#num_of_threads = 4
-		num_of_threads = int(input("Input number of threads: "))
+		num_of_threads = 8
+		#num_of_threads = int(input("Input number of threads: "))
 		print("Beginning download of album with", num_of_threads, "threads")
 		
 		#Start timer (using perf_counter for precision
@@ -177,5 +177,35 @@ if __name__ == '__main__':
 		pics_queue.join()
 		print("Time:", round(time.perf_counter() - start, 3), "seconds")
 		print("For", len(pics), "pictures using", num_of_threads, "threads")
+		print(failed_dl.qsize(), "failed downloads")
+		#Retry if downloads failed
+		if failed_dl.qsize() > 0:
+			#Run until break
+			while True:
+				retry = input("Try downloading", failed_dl, "failed downloads again?(y for yes) ")
+				#If user wishes to stop, break
+				if retry != "y":
+					break
+				#If there are not any failed items left, force break
+				if failed_dl.qsize() == 0:
+					break
+				#Reload the download queue from the failed_dl queue
+				while failed_dl.qsize() > 0:
+					pics_queue.put(failed_dl.get())
+					
+				#Start downloading process again
+				#Start timer (using perf_counter for precision
+				start = time.perf_counter()
+				
+				#Create number of threads specified
+				for i in range(num_of_threads):
+					 t = threading.Thread(target=worker)
+					 t.daemon = True  # thread dies when main thread (only non-daemon thread) exits.
+					 t.start()
+				#Wait until all tasks have finished, lock until done
+				pics_queue.join()
+				print("Time:", round(time.perf_counter() - start, 3), "seconds")
+				print(failed_dl.qsize(), "failed downloads")
+				
 	else:
-		print("Failed to create list of images in gallery")
+		print("Failed to create list of images in gallery from html")
