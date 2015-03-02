@@ -182,7 +182,7 @@ if __name__ == '__main__':
 		if failed_dl.qsize() > 0:
 			#Run until break
 			while True:
-				retry = input("Try downloading", failed_dl, "failed downloads again?(y for yes) ")
+				retry = input("Try downloading " + str(failed_dl.qsize()) + " failed downloads again?(y for yes) ")
 				#If user wishes to stop, break
 				if retry != "y":
 					break
@@ -206,6 +206,5 @@ if __name__ == '__main__':
 				pics_queue.join()
 				print("Time:", round(time.perf_counter() - start, 3), "seconds")
 				print(failed_dl.qsize(), "failed downloads")
-				
 	else:
 		print("Failed to create list of images in gallery from html")
